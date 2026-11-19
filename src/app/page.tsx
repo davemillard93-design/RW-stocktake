@@ -8,6 +8,7 @@ import {openPortraitCamera,drawPortraitFrame,portraitSignature,signatureDifferen
 const URL=process.env.NEXT_PUBLIC_SUPABASE_URL||"https://byqvkuyfswurjncllfct.supabase.co";
 const KEY=process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY||"sb_publishable_6rFqsSnMH1sC_2WRRei6oQ_VcjiOr2h";
 const types=["Gin","Vodka","Rum","Whisky","Tequila","Mezcal","Brandy","Liqueur","Other"];
+const CATALOGUE_SCAN_MIN_CONFIDENCE=0.65;
 export default function Home(){
  const sb=useMemo(()=>createClient(URL,KEY),[]);
  const [session,setSession]=useState<Session|null>(null),[email,setEmail]=useState(""),[password,setPassword]=useState(""),[busy,setBusy]=useState(false),[error,setError]=useState(""),[notice,setNotice]=useState("");
@@ -108,10 +109,11 @@ export default function Home(){
     if(cancelled)return;
     if(!res.ok){setCameraStatus("Recognition error ("+res.status+"): "+(json.error||"Service unavailable. Retrying…"));if(res.status===401||res.status===403){setError(json.error||"Please sign in again.");stopCamera();}return;}
     const d=json.detection||{};
-    const category=String(d.category||"");
+    const category=String(d.category||"").trim();
     const brandName=String(d.brand||"").trim(),productName=String(d.product_name||"").trim();
     const confidence=Number(d.confidence)||0;
-    if(["Spirits","Wine","Soft Drinks"].includes(category)&&brandName&&productName&&confidence>=0.75){
+    const hasReadableName=brandName&&productName&&!/^(unknown|n\/?a|unreadable)$/i.test(brandName)&&!/^(unknown|n\/?a|unreadable)$/i.test(productName);
+    if(["Spirits","Wine","Soft Drinks"].includes(category)&&hasReadableName&&confidence>=CATALOGUE_SCAN_MIN_CONFIDENCE){
      const key=(category+"|"+brandName+"|"+productName+"|"+(Number(d.bottle_size_ml)||"")).toLowerCase();
      if(!seenProducts.current.has(key)&&!savingFrame.current){
       savingFrame.current=true;seenProducts.current.add(key);
@@ -134,7 +136,8 @@ export default function Home(){
       }
       savingFrame.current=false;
      }
-    }else setCameraStatus("Looking for a clear label — hold one product in view…");
+    }else if(brandName||productName){setCameraStatus("Possible label read: "+[brandName,productName].filter(Boolean).join(" ")+" ("+Math.round(confidence*100)+"%). Hold it steady and reduce glare.");}
+    else setCameraStatus("Looking for a clear label — hold one product in view…");
    }catch(e:any){if(!cancelled)setCameraStatus("Scan error: "+(e?.message||"Recognition request failed")+". Retrying…");}
    finally{busyFrame=false;if(!cancelled){setScanning(false);timer=window.setTimeout(scanFrame,700);}}
   }
