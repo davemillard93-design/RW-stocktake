@@ -92,20 +92,23 @@ export default function Home(){
  },[barcodeActive]);
  useEffect(()=>{
   if(!cameraActive||detection||!session)return;
-  let cancelled=false,busyFrame=false;
+  let cancelled=false,busyFrame=false,timer:any=null;
   async function scanFrame(){
+   if(cancelled)return;
    const video=videoRef.current;
-   if(cancelled||busyFrame||!video||video.readyState<2||!video.videoWidth)return;
+   if(busyFrame||!video||video.readyState<2||!video.videoWidth){timer=window.setTimeout(scanFrame,400);return;}
    busyFrame=true;setScanning(true);
    try{
     const canvas=document.createElement("canvas");
-    if(!drawPortraitFrame(video,canvas,960))return;
-    const image=canvas.toDataURL("image/jpeg",0.72);
+    if(!drawPortraitFrame(video,canvas,1280))return;
+    const image=canvas.toDataURL("image/jpeg",0.84);
+    setCameraStatus("Reading the bottle label…");
     const res=await fetch("/api/identify-bottle",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+session.access_token},body:JSON.stringify({image})});
     const json=await res.json();
+    if(cancelled)return;
     if(!res.ok){setCameraStatus("Recognition error ("+res.status+"): "+(json.error||"Service unavailable. Retrying…"));if(res.status===401||res.status===403){setError(json.error||"Please sign in again.");stopCamera();}return;}
     const d=json.detection||{};
-    const category=String(d.category||"Spirits");
+    const category=String(d.category||"");
     const brandName=String(d.brand||"").trim(),productName=String(d.product_name||"").trim();
     const confidence=Number(d.confidence)||0;
     if(["Spirits","Wine","Soft Drinks"].includes(category)&&brandName&&productName&&confidence>=0.75){
@@ -132,11 +135,11 @@ export default function Home(){
       savingFrame.current=false;
      }
     }else setCameraStatus("Looking for a clear label — hold one product in view…");
-   }catch(e:any){setCameraStatus("Scan error: "+(e?.message||"Recognition request failed")+". Retrying…");}
-   finally{busyFrame=false;if(!cancelled)setScanning(false);}
+   }catch(e:any){if(!cancelled)setCameraStatus("Scan error: "+(e?.message||"Recognition request failed")+". Retrying…");}
+   finally{busyFrame=false;if(!cancelled){setScanning(false);timer=window.setTimeout(scanFrame,700);}}
   }
-  const timer=window.setInterval(scanFrame,2100);scanFrame();
-  return()=>{cancelled=true;window.clearInterval(timer)};
+  scanFrame();
+  return()=>{cancelled=true;if(timer)window.clearTimeout(timer)};
  },[cameraActive,detection,session,spirits,loose,workspace]);
  async function saveBottle(e:any){e.preventDefault();if(!workspace||!brand.trim()||!product.trim())return;setSaving(true);setError("");setNotice("");
   const duplicate=spirits.some(x=>(x.brand||"").trim().toLowerCase()===brand.trim().toLowerCase()&&(x.product_name||"").trim().toLowerCase()===product.trim().toLowerCase());
@@ -204,7 +207,7 @@ export default function Home(){
   {tab==="Overview"&&<><section className="panel"><h2>Monthly stocktake</h2><p className="muted">Choose a site and start a new count when you're ready.</p><button onClick={startStocktake} disabled={busy||!siteId}>{busy?"Starting…":"Start stock count"}</button></section><div className="grid"><div className="panel"><div className="small">Spirits catalogue</div><h2>{spirits.length} products</h2></div><div className="panel"><div className="small">Wine & soft drinks</div><h2>{loose.length} products</h2></div></div></>}
   {tab==="Catalogue"&&<><section className="panel"><div className="row"><div><h2>Product catalogue</h2><p className="muted">Scan spirits, wine and soft drinks in one continuous camera session. Recognised products are added to the shared catalogue for both bars.</p></div><div className="actions"><button onClick={()=>{if(cameraActive)stopCamera();else startCamera();}}>{cameraActive?"Stop camera":"📷 Scan products"}</button><button className="secondary" onClick={()=>{if(cameraActive)stopCamera();setBarcodeActive(v=>!v);}}>{barcodeActive?"Stop barcode scan":"▦ Scan barcode"}</button><button onClick={()=>setShowAdd(!showAdd)}>{showAdd?"Close form":"＋ Add a spirit"}</button></div></div>
   {barcodeActive&&<div className="panel"><h3>Scan bottle barcode</h3><video ref={barcodeVideoRef} autoPlay muted playsInline className="camera-portrait"/><p className="small">{barcodeStatus}</p><p className="small">Hold the barcode steady inside the camera view. If it is not in the product database, use photo recognition or add the details manually.</p><button className="secondary" onClick={()=>setBarcodeActive(false)}>Cancel scan</button></div>}
-  {cameraActive&&<div className="panel"><video ref={videoRef} autoPlay muted playsInline className="camera-portrait"/><p className="small">{cameraStatus}</p><p className="small">Hold one product label clearly in view. The app identifies the category and adds it to the right catalogue. Keep the camera open and move to the next product.</p><button className="secondary" onClick={stopCamera}>Finish scanning</button></div>}
+  {cameraActive&&<div className="panel"><video ref={videoRef} autoPlay muted playsInline className="camera-portrait"/><p className="small">{cameraStatus}</p><p className="small">Center one label and hold it steady until the app confirms it was added or is already in the catalogue, then move to the next product.</p><button className="secondary" onClick={stopCamera}>Finish scanning</button></div>}
   {showAdd&&<form className="panel" onSubmit={saveBottle}><h3>Add spirit to catalogue</h3><div className="grid"><div><label>Brand / producer *</label><input required value={brand} onChange={e=>setBrand(e.target.value)} placeholder="e.g. Tanqueray"/></div><div><label>Spirit name / expression *</label><input required value={product} onChange={e=>setProduct(e.target.value)} placeholder="e.g. London Dry Gin"/></div><div><label>Spirit category *</label><select value={spiritType} onChange={e=>setSpiritType(e.target.value)}>{types.map(t=><option key={t}>{t}</option>)}</select></div><div><label>Bottle size</label><select value={size} onChange={e=>setSize(e.target.value)}><option value="500">500ml</option><option value="700">700ml</option><option value="750">750ml</option><option value="1000">1 litre</option><option value="1500">1.5 litre</option></select></div></div><label>Reference bottle photo (recommended)</label><input type="file" accept="image/*" capture="environment" onChange={e=>setProfilePhoto(e.target.files?.[0]||null)}/><p className="small">Take a clear front-on photo of the full bottle, with the liquid level and bottle shape visible.</p><label>Notes (optional)</label><input value={spiritNotes} onChange={e=>setSpiritNotes(e.target.value)} placeholder="e.g. flavoured, limited edition, ABV"/><div className="actions"><button className="full" type="submit" disabled={saving||!brand.trim()||!product.trim()}>{saving?"Saving…":"Save spirit to catalogue"}</button></div><p className="small">Add a clear reference photo so the stocktake can compare the bottle and estimate its fill level.</p></form>}
   <h3>Current spirits ({spirits.length})</h3>{spirits.length===0?<p className="muted">No spirits added yet. Use “Add a spirit” to start your catalogue.</p>:spirits.map(x=><div className="item" key={x.id}>{x.photo_url&&<img src={x.photo_url} alt={x.brand+" "+x.product_name} style={{width:54,height:70,objectFit:"contain",borderRadius:8,background:"#f5f5f5"}}/>}<div style={{flex:1}}><b>{x.brand}</b><div className="small">{x.product_name} · {x.spirit_type} · {x.bottle_size_ml}ml</div></div><label className="small" style={{cursor:"pointer"}}>{x.profile_image_path?"Replace photo":"Add photo"}<input type="file" accept="image/*" capture="environment" style={{display:"block",maxWidth:120}} onChange={e=>saveExistingPhoto(x,e.target.files?.[0])}/></label></div>)}</section>
   <section className="panel"><div className="row"><div><h2>Wine & soft drinks</h2><p className="muted">Shared catalogue for both bars</p></div><button onClick={()=>setShowLooseAdd(v=>!v)}>{showLooseAdd?"Close form":"＋ Add wine / soft drink"}</button></div>
@@ -216,3 +219,4 @@ export default function Home(){
   </>}</section></>}
  </main>
 }
+
