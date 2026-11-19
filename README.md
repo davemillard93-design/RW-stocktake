@@ -18,4 +18,4 @@ Install dependencies with `npm install`, then run `npm run build`.
 
 ## Vercel
 
-The intended production branch is `main`. The existing Vercel project is `redwillow-loose-stock` and serves `pourventory.vercel.app`.
+The production branch is `main`. The Vercel project `redwillow-loose-stock` serves `pourventory.vercel.app`. Pushes to `main` publish production updates; other branches are used for previews.
