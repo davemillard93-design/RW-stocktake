@@ -1,0 +1,43 @@
+:root{color-scheme:dark;--bg:#101714;--panel:#1b2520;--panel2:#24322b;--line:#35483d;--text:#f1f5ef;--muted:#aab8ae;--accent:#c7e36b;--danger:#f18d80}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.45 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}button,input,select{font:inherit}button{border:0;border-radius:12px;padding:12px 16px;background:var(--accent);color:#172016;font-weight:700;cursor:pointer}button.secondary{background:var(--panel2);color:var(--text);border:1px solid var(--line)}button:disabled{opacity:.45;cursor:not-allowed}input,select{width:100%;padding:12px;border-radius:10px;border:1px solid var(--line);background:#111a15;color:var(--text)}label{display:block;color:var(--muted);font-size:13px;margin:12px 0 6px}.shell{max-width:980px;margin:auto;padding:20px 16px 60px}.top{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:22px}.brand{font-weight:850;font-size:22px}.brand span{color:var(--accent)}.muted{color:var(--muted)}.panel{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:18px;margin:14px 0}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px}.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.row>*{flex:1}.tabs{display:flex;gap:8px;overflow:auto;margin:14px 0}.tabs button{white-space:nowrap}.tabs button.active{background:var(--accent);color:#172016}.item{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:12px 0;border-bottom:1px solid var(--line)}.item:last-child{border:0}.small{font-size:12px;color:var(--muted)}.error{color:var(--danger);margin:12px 0}.success{color:var(--accent);margin:12px 0}.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.actions button{flex:1}.full{width:100%}.auth{max-width:420px;margin:10vh auto}.preview{width:100%;max-height:300px;object-fit:contain;border-radius:12px;background:#080b09}.pill{display:inline-block;border:1px solid var(--line);border-radius:99px;padding:4px 10px;color:var(--muted);font-size:12px}.tablewrap{overflow:auto}table{width:100%;border-collapse:collapse}td,th{text-align:left;padding:9px;border-bottom:1px solid var(--line)}@media(max-width:520px){.shell{padding:16px 12px 40px}.panel{padding:15px}.top{align-items:flex-start}.brand{font-size:20px}}
+
+/* PourVentory visual refresh */
+:root{color-scheme:light;--bg:#f4f6f5;--panel:#ffffff;--panel2:#edf3f1;--line:#dce5e1;--text:#172a27;--muted:#71817b;--accent:#167d70;--danger:#b54745}
+body{background:var(--bg);color:var(--text);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;letter-spacing:-.01em}
+.shell{max-width:1120px;padding:30px 24px 72px}
+.top{padding:8px 0 22px;margin-bottom:26px;border-bottom:1px solid var(--line)}
+.brand{font-size:25px;letter-spacing:-.045em;font-weight:850;color:#173a34}
+.brand span{color:var(--accent)}
+.muted,.small{color:var(--muted)}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:22px;margin:16px 0;box-shadow:0 4px 18px rgba(24,54,46,.045)}
+.grid{gap:16px}
+button{border-radius:11px;padding:12px 17px;background:var(--accent);color:#fff;font-weight:700;box-shadow:0 2px 5px rgba(22,125,112,.12);transition:background .16s ease,transform .16s ease,box-shadow .16s ease}
+button:hover:not(:disabled){background:#11685e;box-shadow:0 5px 12px rgba(22,125,112,.17);transform:translateY(-1px)}
+button.secondary{background:#fff;color:#29423c;border:1px solid var(--line);box-shadow:none}
+button.secondary:hover:not(:disabled){background:var(--panel2)}
+button:disabled{box-shadow:none}
+input,select{background:#fbfcfc;color:var(--text);border:1px solid #d6e0dc;border-radius:11px;padding:13px 14px;outline:none;transition:border-color .15s,box-shadow .15s}
+input:focus,select:focus{border-color:#54a99d;box-shadow:0 0 0 3px rgba(22,125,112,.12)}
+label{color:#53665f;font-weight:650;font-size:12px;letter-spacing:.025em;text-transform:uppercase;margin:15px 0 7px}
+.tabs{gap:6px;margin:18px 0 22px;padding:5px;background:#e9efec;border:1px solid var(--line);border-radius:14px;width:max-content;max-width:100%}
+.tabs button{background:transparent;color:#61736c;box-shadow:none;padding:10px 15px;border-radius:9px}
+.tabs button:hover:not(:disabled){background:#f7faf8;color:#24443c;transform:none;box-shadow:none}
+.tabs button.active{background:#fff;color:#176f63;box-shadow:0 1px 4px rgba(20,50,42,.1)}
+.item{padding:15px 2px;border-bottom-color:#edf1ef}
+.pill{background:#eef5f2;border:1px solid #dceae4;color:#347468;padding:5px 10px;font-weight:650}
+.preview,.camera{border-radius:16px;background:#edf2ef}
+.tablewrap{border:1px solid var(--line);border-radius:14px;background:#fff}
+table{font-size:14px}th{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#687a73;background:#f6f9f7}td,th{padding:12px 14px;border-bottom-color:#edf1ef}
+.auth{margin:9vh auto}.auth .panel{padding:28px}
+.error{color:#b54745;background:#fff2f0;border:1px solid #f4d6d2;border-radius:10px;padding:10px 12px}
+.success{color:#176f63;background:#edf7f3;border:1px solid #d6ebe2;border-radius:10px;padding:10px 12px}
+.actions{gap:10px}
+@media(max-width:640px){.shell{padding:18px 14px 48px}.panel{padding:17px;border-radius:16px}.top{align-items:center;margin-bottom:18px}.brand{font-size:22px}.tabs{width:100%;overflow-x:auto}.tabs button{padding:10px 12px}.actions button{min-width:100%}}
+
+/* Compact brand strapline */
+.tagline{font-size:10px;line-height:1.35;font-weight:700;letter-spacing:.105em;text-transform:uppercase;color:#71817b;margin-top:4px}
+
+/* Keep continuous shelf camera contained within the stocktake panel */
+.camera{display:block;width:100%;height:clamp(150px,26vh,220px);max-height:220px;object-fit:cover}
+
+/* All scanning uses a compact portrait camera window; inference is cropped to this same frame. */
+.camera-portrait{display:block;height:min(320px,42vh);width:auto;max-width:100%;aspect-ratio:9/16;object-fit:cover;object-position:center;margin:10px auto;border-radius:14px;background:#080b09;border:1px solid var(--line)}
