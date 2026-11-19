@@ -73,26 +73,38 @@ export async function POST(req: NextRequest) {
     let response: Response | null = null;
     let raw = "";
     let lastModel = "";
+    let lastStatus = 503;
+    let lastError = "The recognition service could not be reached.";
     for (const model of ["gemini-3.8-flash", "gemini-3.5-flash", "gemini-3.5-flash-lite", "gemini-2.5-flash"]) {
       lastModel = model;
-      response = await fetch(
-        "https://generativelanguage.googleapis.com/v1beta/models/" + model + ":generateContent?key=" + encodeURIComponent(key),
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          signal: AbortSignal.timeout(25000),
-          body: JSON.stringify({
-            contents: [{ role: "user", parts: [{ text: prompt }, { inline_data: { mime_type: image.mimeType, data: image.data } }] }],
-            generationConfig: { temperature: 0, responseMimeType: "application/json", maxOutputTokens: 400 },
-          }),
-        }
-      );
-      raw = await response.text();
+      try {
+        response = await fetch(
+          "https://generativelanguage.googleapis.com/v1beta/models/" + model + ":generateContent?key=" + encodeURIComponent(key),
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            signal: AbortSignal.timeout(25000),
+            body: JSON.stringify({
+              contents: [{ role: "user", parts: [{ text: prompt }, { inline_data: { mime_type: image.mimeType, data: image.data } }] }],
+              generationConfig: { temperature: 0, responseMimeType: "application/json", maxOutputTokens: 400 },
+            }),
+          }
+        );
+        raw = await response.text();
+      } catch (error: any) {
+        response = null;
+        lastStatus = 503;
+        lastError = error?.name === "TimeoutError" ? "Bottle recognition timed out on " + model + "." : "Bottle recognition could not reach " + model + ".";
+        console.warn("Gemini bottle scan request failed; trying next model", model, error?.name || "NetworkError");
+        continue;
+      }
       if (response.ok) break;
+      lastStatus = response.status;
+      lastError = raw.slice(0, 200);
       if (![404, 429, 500, 502, 503, 504].includes(response.status)) break;
       console.warn("Gemini model unavailable; trying next model", model, response.status, raw.slice(0, 300));
     }
-    if (!response) throw new Error("The recognition service could not be reached.");
+    if (!response) return NextResponse.json({ error: lastError }, { status: lastStatus });
     if (!response.ok) {
       console.error("Gemini bottle scan failed", response.status, raw.slice(0, 1200));
       return NextResponse.json(
@@ -145,3 +157,4 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: error?.message || "Bottle scan failed. Please try again." }, { status: 500 });
   }
 }
+
