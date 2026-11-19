@@ -34,13 +34,14 @@ export async function POST(req: NextRequest) {
     if (!key) return NextResponse.json({ error: "Gemini scanner key is not configured." }, { status: 503 });
     const img = unpackImage(image);
 
-    const prompt = `Identify the single packaged drink in this close-up product photo. Read brand and product_name from text that is actually visible on the label; do not infer a brand from bottle shape, color, or a familiar design. Classify category as exactly one of Spirits, Wine, Soft Drinks. For Spirits, spirit_type must be one of Gin, Vodka, Rum, Whisky, Tequila, Mezcal, Brandy, Liqueur, Other. For Wine, set subcategory to a visible style such as Red, White, Rose, Sparkling, or Fortified. For Soft Drinks, use a type such as Cola, Lemonade, Tonic, Mixer, Juice, or Water. Read bottle_size_ml from a visible label only, otherwise use null. If the label is blurred, partly hidden, or ambiguous, return empty brand and product_name. Never invent a product, size, or brand. Return JSON only with keys category, brand, product_name, spirit_type, subcategory, bottle_size_ml, confidence, notes.`;
+    const prompt = `Identify the single packaged drink in this close-up product photo. Read brand and product_name from text that is actually visible on the label; do not infer a brand from bottle shape, color, or a familiar design. Classify category as exactly one of Spirits, Wine, Soft Drinks. For Spirits, spirit_type must be one of Gin, Vodka, Rum, Whisky, Tequila, Mezcal, Brandy, Liqueur, Other. For Wine, set subcategory to a visible style such as Red, White, Rose, Sparkling, or Fortified. For Soft Drinks, use a type such as Cola, Lemonade, Tonic, Mixer, Juice, or Water. Read bottle_size_ml from a visible label only, otherwise use null. If the label is blurred, partly hidden, or ambiguous, return empty brand and product_name. Never invent a product, size, or brand. For a legible but imperfect label read, report the best supported text and a confidence score; do not lower confidence solely because the camera image is imperfect. Return JSON only with keys category, brand, product_name, spirit_type, subcategory, bottle_size_ml, confidence, notes.`;
 
     let response: Response | null = null;
     let raw = "";
     let lastStatus = 503;
     let lastMessage = "Recognition service unavailable.";
-    for (const model of ["gemini-3.8-flash", "gemini-3.6-flash", "gemini-3.5-flash-lite"]) {
+    let selectedModel = "";
+    for (const model of ["gemini-3.6-flash", "gemini-3.5-flash-lite", "gemini-3.8-flash"]) {
       for (let attempt = 0; attempt < 2; attempt++) {
         try {
           response = await fetch("https://generativelanguage.googleapis.com/v1beta/models/" + model + ":generateContent?key=" + encodeURIComponent(key), {
@@ -66,7 +67,7 @@ export async function POST(req: NextRequest) {
         if (![429, 500, 502, 503, 504].includes(response.status)) break;
         if (attempt === 0) await new Promise(resolve => setTimeout(resolve, 700));
       }
-      if (response?.ok) break;
+      if (response?.ok) { selectedModel = model; break; }
       if (![404, 429, 500, 502, 503, 504].includes(lastStatus)) break;
       console.warn("Product recognition model unavailable; trying fallback", model, lastStatus, lastMessage.slice(0, 220));
     }
@@ -77,10 +78,11 @@ export async function POST(req: NextRequest) {
     const cleaned = output.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
     const result = JSON.parse(cleaned);
     const allowedCategories = ["Spirits", "Wine", "Soft Drinks"];
+    const category = cleanText(result.category, 40);
     const confidence = Number(result.confidence);
     const size = Number(result.bottle_size_ml);
     const detection = {
-      category: allowedCategories.includes(result.category) ? result.category : "",
+      category: allowedCategories.includes(category) ? category : "",
       brand: cleanText(result.brand, 100),
       product_name: cleanText(result.product_name, 140),
       spirit_type: cleanText(result.spirit_type, 40),
@@ -89,6 +91,15 @@ export async function POST(req: NextRequest) {
       confidence: Number.isFinite(confidence) ? Math.max(0, Math.min(1, confidence)) : 0,
       notes: cleanText(result.notes, 300),
     };
+    if (detection.confidence < 0.65 || !detection.category || !detection.brand || !detection.product_name) {
+      console.info("Catalogue image was not auto-added", {
+        model: selectedModel,
+        category: detection.category || "unclassified",
+        confidence: detection.confidence,
+        hasBrand: !!detection.brand,
+        hasProductName: !!detection.product_name,
+      });
+    }
     return NextResponse.json({ detection });
   } catch (e: any) {
     console.error("Product identification failed", e);
