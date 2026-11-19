@@ -246,6 +246,21 @@ th { background: #f7faf8; color: #697b72; font-size: 10px; letter-spacing: .07em
 .shelf-stocktake .manual-count { background: #fbfcfb; }
 .shelf-stocktake .scanner-live { margin-top: 14px; padding: 14px; border: 1px solid var(--line-strong); border-radius: 14px; background: #f6f9f7; }
 .shelf-stocktake .scanner-live video { background: #12201a !important; }
+.product-search { margin: 0 0 18px; padding: 15px; border: 1px solid var(--line); border-radius: 13px; background: var(--surface-soft); }
+.product-search > label { margin-top: 0; }
+.product-search-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 9px; }
+.product-search-row button { min-width: 92px; }
+.product-search-results { display: grid; gap: 8px; margin-top: 12px; }
+.product-search-result { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 11px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+.product-search-copy { display: grid; gap: 3px; min-width: 0; }
+.product-search-copy strong { font-size: 13px; }
+.product-search-copy span { color: var(--muted); font-size: 11px; }
+.product-search-result button { flex: 0 0 auto; min-height: 37px; padding: 8px 12px; font-size: 12px; }
+.wine-style-group { margin-top: 16px; }
+.wine-style-group > h3 { display: flex; align-items: center; justify-content: space-between; margin: 0; padding: 10px 0 5px; border-bottom: 1px solid var(--line); }
+.wine-style-group > h3 .pill { font-size: 10px; }
+.wine-product-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.wine-product-heading .pill { flex: 0 0 auto; }
 
 .auth { width: min(100% - 36px, 430px); margin: 8vh auto 0; padding: 0; }
 .auth > .brand-lockup { justify-content: center; margin-bottom: 24px; }
@@ -288,6 +303,10 @@ th { background: #f7faf8; color: #697b72; font-size: 10px; letter-spacing: .07em
   .row { gap: 8px; }
   .row > * { flex-basis: 100%; }
   .item { gap: 10px; }
+  .product-search-row { grid-template-columns: 1fr; }
+  .product-search-result { align-items: flex-start; flex-direction: column; }
+  .product-search-result button { width: 100%; }
+  .wine-product-heading { align-items: flex-start; flex-direction: column; }
   .camera-portrait { height: min(330px, 48vh); }
   .auth { width: min(100% - 24px, 430px); margin-top: 5vh; }
 }

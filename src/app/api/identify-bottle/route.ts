@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
     if (!key) return NextResponse.json({ error: "Gemini scanner key is not configured." }, { status: 503 });
     const img = unpackImage(image);
 
-    const prompt = `Identify the single packaged drink in this close-up product photo. Read brand and product_name from text that is actually visible on the label; do not infer a brand from bottle shape, color, or a familiar design. Classify category as exactly one of Spirits, Wine, Soft Drinks. For Spirits, spirit_type must be one of Gin, Vodka, Rum, Whisky, Tequila, Mezcal, Brandy, Liqueur, Other. For Wine, set subcategory to a visible style such as Red, White, Rose, Sparkling, or Fortified. For Soft Drinks, use a type such as Cola, Lemonade, Tonic, Mixer, Juice, or Water. Read bottle_size_ml from a visible label only, otherwise use null. If the label is blurred, partly hidden, or ambiguous, return empty brand and product_name. Never invent a product, size, or brand. For a legible but imperfect label read, report the best supported text and a confidence score; do not lower confidence solely because the camera image is imperfect. Return JSON only with keys category, brand, product_name, spirit_type, subcategory, bottle_size_ml, confidence, notes.`;
+    const prompt = `Identify the single packaged drink in this close-up product photo. Read brand and product_name from text that is actually visible on the label; do not infer a brand from bottle shape, color, or a familiar design. Classify category as exactly one of Spirits, Wine, Soft Drinks. For Spirits, spirit_type must be one of Gin, Vodka, Rum, Whisky, Tequila, Mezcal, Brandy, Liqueur, Other. For Wine, classify subcategory as exactly one of White, Red, Rosé, Fizz. Use Fizz for sparkling wine, including Champagne, Prosecco and Cava. For Soft Drinks, use a type such as Cola, Lemonade, Tonic, Mixer, Juice, or Water. Read bottle_size_ml from a visible label only, otherwise use null. If the label is blurred, partly hidden, or ambiguous, return empty brand and product_name. Never invent a product, size, or brand. For a legible but imperfect label read, report the best supported text and a confidence score; do not lower confidence solely because the camera image is imperfect. Return JSON only with keys category, brand, product_name, spirit_type, subcategory, bottle_size_ml, confidence, notes.`;
 
     let response: Response | null = null;
     let raw = "";
@@ -107,4 +107,3 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: e?.message || "Product identification failed." }, { status: 500 });
   }
 }
-
