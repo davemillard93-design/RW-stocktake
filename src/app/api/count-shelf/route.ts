@@ -21,6 +21,14 @@ function cleanText(value: unknown, maxLength: number) {
   return typeof value === "string" ? value.trim().slice(0, maxLength) : "";
 }
 
+function normalizeLabel(value: string) {
+  return value.normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+}
+
+function catalogueKey(brand: string, productName: string) {
+  return normalizeLabel(brand) + "|" + normalizeLabel(productName);
+}
+
 export async function POST(req: NextRequest) {
   try {
     const token = (req.headers.get("authorization") || "").replace(/^Bearer /, "");
@@ -61,7 +69,7 @@ export async function POST(req: NextRequest) {
     const productList = catalogue.length
       ? "Known products in this category (match only when the label supports it): " + JSON.stringify(catalogue) + "\n"
       : "No catalogue products were supplied. Read the visible label without guessing.\n";
-    const prompt = `You are counting physical stock during a short camera sweep. These images are consecutive frames in chronological order. Detect each distinct full, closed ${category === "Wine" ? "wine bottle" : "soft drink bottle, can or carton"} visible in any frame. Count identical containers separately when they are physically separate in one frame. If the same physical container appears in multiple frames, report it only once and use the latest frame where it is clearly visible. Ignore opened, partly used or empty containers, spirits, people, shelf labels and posters. ${productList}For each item return catalogue_id when a supplied catalogue entry clearly matches the visible label; otherwise return null and read brand and product_name only when legible, using "Unknown" when not readable. Return JSON only with this shape: {"items":[{"catalogue_id":null,"brand":"...","product_name":"...","subcategory":"...","bottle_size_ml":null,"confidence":0.8,"frame_index":0,"box":[left,top,right,bottom]}]}. frame_index is zero-based and box coordinates are normalized integers 0-1000 in that frame. Give every physical container its own box. If none are visible, return an empty items array.`;
+    const prompt = `You are counting physical stock during a short camera sweep. These images are consecutive frames in chronological order. Detect each distinct full, closed ${category === "Wine" ? "wine bottle" : "soft drink bottle, can or carton"} visible in any frame. Count identical containers separately when they are physically separate in one frame. If the same physical container appears in multiple frames, report it only once and use the latest frame where it is clearly visible. Ignore opened, partly used or empty containers, spirits, people, shelf labels and posters. ${productList}For each item return catalogue_id when a supplied catalogue entry clearly matches the visible label. Read the printed package volume only when the number is actually legible; return it as observed_size_ml in millilitres, otherwise null. Never infer size from apparent height, width, shape, camera distance or perspective. If multiple catalogue entries have the same brand and product name but different sizes, choose an entry only when its printed volume is legible and exactly agrees with that entry. Otherwise return catalogue_id:null and size_ambiguous:true. If the legible printed volume conflicts with the proposed catalogue entry, return catalogue_id:null and size_mismatch:true. Return JSON only with this shape: {"items":[{"catalogue_id":null,"brand":"...","product_name":"...","subcategory":"...","observed_size_ml":null,"size_ambiguous":false,"size_mismatch":false,"confidence":0.8,"frame_index":0,"box":[left,top,right,bottom]}]}. frame_index is zero-based and box coordinates are normalized integers 0-1000 in that frame. Give every physical container its own box. If none are visible, return an empty items array.`;
 
     const parts: any[] = [{ text: prompt }];
     frames.forEach((frame: { mimeType: string; data: string }, index: number) => {
@@ -111,14 +119,38 @@ export async function POST(req: NextRequest) {
       if (!Array.isArray(item.box) || item.box.length !== 4 || Number(item.confidence) < 0.55) return [];
       const box = item.box.map((value: unknown) => Math.max(0, Math.min(1000, Number(value) || 0)));
       if (box[2] <= box[0] || box[3] <= box[1]) return [];
-      const match = catalogue.find(product => product.id === cleanText(item.catalogue_id, 80));
-      const size = match?.bottle_size_ml ?? (Number(item.bottle_size_ml) || null);
+      const requestedMatch = catalogue.find(product => product.id === cleanText(item.catalogue_id, 80));
+      const brand = cleanText(item.brand, 100) || requestedMatch?.brand || "Unknown";
+      const productName = cleanText(item.product_name, 140) || requestedMatch?.product_name || "Unknown";
+      const identity = requestedMatch ? catalogueKey(requestedMatch.brand, requestedMatch.product_name) : catalogueKey(brand, productName);
+      const variants = catalogue.filter(product => catalogueKey(product.brand, product.product_name) === identity);
+      const variantSizes = [...new Set(variants.map(product => product.bottle_size_ml).filter((size): size is number => size != null))];
+      const rawObservedSize = Number(item.observed_size_ml);
+      const observedSize = Number.isFinite(rawObservedSize) && rawObservedSize > 0 ? rawObservedSize : null;
+      let match = requestedMatch;
+      let sizeMismatch = item.size_mismatch === true;
+      if (observedSize && variants.length) {
+        const exactSizeMatches = variants.filter(product => product.bottle_size_ml === observedSize);
+        if (exactSizeMatches.length === 1) {
+          match = exactSizeMatches[0];
+          sizeMismatch = false;
+        } else if (!exactSizeMatches.length) {
+          match = null;
+          sizeMismatch = true;
+        }
+      }
+      const sizeAmbiguous = item.size_ambiguous === true || (variantSizes.length > 1 && !observedSize);
+      if (sizeMismatch || sizeAmbiguous) match = null;
+      const size = match?.bottle_size_ml ?? observedSize;
       return [{
         catalogue_id: match?.id || null,
-        brand: match?.brand || cleanText(item.brand, 100) || "Unknown",
-        product_name: match?.product_name || cleanText(item.product_name, 140) || "Unknown",
+        brand: match?.brand || brand,
+        product_name: match?.product_name || productName,
         subcategory: match?.subcategory || cleanText(item.subcategory, 80),
         bottle_size_ml: Number.isFinite(Number(size)) && Number(size) > 0 ? Number(size) : null,
+        observed_size_ml: observedSize,
+        size_ambiguous: sizeAmbiguous,
+        size_mismatch: sizeMismatch,
         confidence: Math.max(0, Math.min(1, Number(item.confidence) || 0)),
         frame_index: Math.max(0, Math.min(frames.length - 1, Math.floor(Number(item.frame_index) || 0))),
         box,
