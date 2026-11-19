@@ -41,33 +41,34 @@ export async function POST(req: NextRequest) {
     let lastStatus = 503;
     let lastMessage = "Recognition service unavailable.";
     let selectedModel = "";
-    for (const model of ["gemini-3.6-flash", "gemini-3.5-flash-lite", "gemini-3.8-flash"]) {
-      for (let attempt = 0; attempt < 2; attempt++) {
-        try {
-          response = await fetch("https://generativelanguage.googleapis.com/v1beta/models/" + model + ":generateContent?key=" + encodeURIComponent(key), {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            signal: AbortSignal.timeout(22000),
-            body: JSON.stringify({
-              contents: [{ role: "user", parts: [{ text: prompt }, { inline_data: { mime_type: img.mimeType, data: img.data } }] }],
-              generationConfig: { temperature: 0.1, responseMimeType: "application/json", maxOutputTokens: 500 },
-            }),
-          });
-        } catch (e: any) {
-          lastStatus = 503;
-          lastMessage = e?.name === "TimeoutError" ? "Recognition timed out on " + model : String(e?.message || "Network error");
-          if (attempt === 0) await new Promise(resolve => setTimeout(resolve, 700));
-          continue;
-        }
-
-        raw = await response.text();
-        if (response.ok) break;
-        lastStatus = response.status;
-        lastMessage = raw.slice(0, 300);
-        if (![429, 500, 502, 503, 504].includes(response.status)) break;
-        if (attempt === 0) await new Promise(resolve => setTimeout(resolve, 700));
+    for (const model of ["gemini-3.5-flash-lite", "gemini-3.6-flash", "gemini-3.8-flash"]) {
+      let modelResponse: Response;
+      try {
+        modelResponse = await fetch("https://generativelanguage.googleapis.com/v1beta/models/" + model + ":generateContent?key=" + encodeURIComponent(key), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          signal: AbortSignal.timeout(10000),
+          body: JSON.stringify({
+            contents: [{ role: "user", parts: [{ text: prompt }, { inline_data: { mime_type: img.mimeType, data: img.data } }] }],
+            generationConfig: { temperature: 0.1, responseMimeType: "application/json", maxOutputTokens: 500 },
+          }),
+        });
+      } catch (e: any) {
+        lastStatus = 503;
+        lastMessage = e?.name === "TimeoutError" ? "Recognition timed out on " + model : String(e?.message || "Network error");
+        console.warn("Product recognition model unavailable; trying fallback", model, lastStatus, lastMessage);
+        continue;
       }
-      if (response?.ok) { selectedModel = model; break; }
+
+      const modelRaw = await modelResponse.text();
+      if (modelResponse.ok) {
+        response = modelResponse;
+        raw = modelRaw;
+        selectedModel = model;
+        break;
+      }
+      lastStatus = modelResponse.status;
+      lastMessage = modelRaw.slice(0, 300);
       if (![404, 429, 500, 502, 503, 504].includes(lastStatus)) break;
       console.warn("Product recognition model unavailable; trying fallback", model, lastStatus, lastMessage.slice(0, 220));
     }
