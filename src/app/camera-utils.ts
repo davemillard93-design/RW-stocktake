@@ -56,7 +56,17 @@ export function portraitSignature(video: HTMLVideoElement): Uint8ClampedArray | 
   canvas.width = 24;
   canvas.height = 42;
   if (!drawPortraitFrame(video, canvas, 42)) return null;
-  return canvas.getContext("2d")?.getImageData(0, 0, 24, 42).data || null;
+  return portraitSignatureFromCanvas(canvas);
+}
+
+export function portraitSignatureFromCanvas(source: HTMLCanvasElement): Uint8ClampedArray | null {
+  const canvas = document.createElement("canvas");
+  canvas.width = 24;
+  canvas.height = 42;
+  const ctx = canvas.getContext("2d");
+  if (!ctx || !source.width || !source.height) return null;
+  ctx.drawImage(source, 0, 0, 24, 42);
+  return ctx.getImageData(0, 0, 24, 42).data;
 }
 
 export function signatureDifference(a: Uint8ClampedArray | null, b: Uint8ClampedArray | null): number {
@@ -68,3 +78,65 @@ export function signatureDifference(a: Uint8ClampedArray | null, b: Uint8Clamped
   }
   return total / count;
 }
+
+/** Estimates how much the camera moved between two portrait frames. */
+export function estimatePortraitMotion(
+  previous: Uint8ClampedArray | null,
+  current: Uint8ClampedArray | null,
+): { dx: number; dy: number } | null {
+  const width = 24;
+  const height = 42;
+  if (!previous || !current || previous.length !== width * height * 4 || current.length !== previous.length) return null;
+
+  const gray = (pixels: Uint8ClampedArray) => {
+    const result = new Float32Array(width * height);
+    for (let i = 0, p = 0; i < pixels.length; i += 4, p++) {
+      result[p] = pixels[i] * 0.299 + pixels[i + 1] * 0.587 + pixels[i + 2] * 0.114;
+    }
+    return result;
+  };
+
+  const a = gray(previous);
+  const b = gray(current);
+  const scoreAt = (dx: number, dy: number) => {
+    const left = Math.max(0, -dx);
+    const right = Math.min(width, width - dx);
+    const top = Math.max(0, -dy);
+    const bottom = Math.min(height, height - dy);
+    const count = (right - left) * (bottom - top);
+    if (count < width * height * 0.52) return Number.POSITIVE_INFINITY;
+
+    let sumA = 0;
+    let sumB = 0;
+    for (let y = top; y < bottom; y++) {
+      for (let x = left; x < right; x++) {
+        sumA += a[y * width + x];
+        sumB += b[(y + dy) * width + x + dx];
+      }
+    }
+    const meanA = sumA / count;
+    const meanB = sumB / count;
+    let error = 0;
+    for (let y = top; y < bottom; y++) {
+      for (let x = left; x < right; x++) {
+        error += Math.abs((a[y * width + x] - meanA) - (b[(y + dy) * width + x + dx] - meanB));
+      }
+    }
+    return error / count;
+  };
+
+  const stillScore = scoreAt(0, 0);
+  let best = { dx: 0, dy: 0, score: stillScore };
+  for (let dy = -16; dy <= 16; dy++) {
+    for (let dx = -12; dx <= 12; dx++) {
+      if (dx === 0 && dy === 0) continue;
+      const score = scoreAt(dx, dy);
+      if (score < best.score) best = { dx, dy, score };
+    }
+  }
+
+  // Ignore weak matches caused by lighting changes or a completely new view.
+  if (!Number.isFinite(best.score) || stillScore - best.score < 2.5) return null;
+  return { dx: best.dx * (1000 / width), dy: best.dy * (1000 / height) };
+}
+
