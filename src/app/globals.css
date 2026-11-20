@@ -261,6 +261,16 @@ th { background: #f7faf8; color: #697b72; font-size: 10px; letter-spacing: .07em
 .wine-style-group > h3 .pill { font-size: 10px; }
 .wine-product-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .wine-product-heading .pill { flex: 0 0 auto; }
+.reference-preview, .existing-reference-tools { margin-top: 10px; }
+.reference-image-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(82px, 1fr)); gap: 8px; margin-top: 8px; max-width: 430px; }
+.reference-image { display: grid; gap: 4px; color: var(--muted); text-decoration: none; font-size: 10px; line-height: 1.25; }
+.reference-image img { width: 100%; height: 94px; padding: 4px; object-fit: contain; border: 1px solid var(--line); border-radius: 9px; background: #fff; }
+.reference-image span { overflow: hidden; text-overflow: ellipsis; }
+.reference-image-grid.compact { grid-template-columns: repeat(auto-fill, minmax(58px, 72px)); }
+.reference-image-grid.compact .reference-image img { height: 70px; }
+.existing-reference-tools .secondary { min-height: 33px; margin-top: 5px; padding: 7px 10px; font-size: 11px; }
+.reference-candidates { display: grid; justify-items: start; gap: 5px; margin: 8px 0; padding: 9px; border: 1px solid var(--line); border-radius: 9px; }
+.reference-candidates .secondary { width: 100%; text-align: left; }
 
 .auth { width: min(100% - 36px, 430px); margin: 8vh auto 0; padding: 0; }
 .auth > .brand-lockup { justify-content: center; margin-bottom: 24px; }
@@ -314,3 +324,4 @@ th { background: #f7faf8; color: #697b72; font-size: 10px; letter-spacing: .07em
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; }
 }
+
